@@ -12,5 +12,11 @@ pipeline {
                 sh 'echo $HOSTNAME && echo $(pwd) && ls -alR'
             }
         }
+        stage('lint') {
+            steps {
+                sh 'set -x; find . -type f \\( -name \'*.yaml\' -o -name \'*.yml\' \\) -exec yamllint -f colored -s {} +'
+                sh 'set -x; find . -name \'*.sls\' -exec salt-lint --severity -x 204 {} +'
+            }
+        }
     }
 }
