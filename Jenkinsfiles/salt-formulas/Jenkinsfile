@@ -1,0 +1,16 @@
+pipeline {
+    agent {
+        docker {
+                image 'registry.opensuse.org/isv/suseinfra/containers/containerfile/suseinfra/salt-ci-lint'
+                label 'docker' 
+        }
+    }
+    stages {
+        stage('lint') {
+            steps {
+                sh 'find . -type f \\( -name \'*.yaml\' -o -name \'*.yml\' \\) -exec yamllint -f colored -s {} +'
+                sh 'find . -name \'*.sls\' -exec salt-lint --severity -x 204 {} +'
+            }
+        }
+    }
+}
