@@ -1,38 +1,81 @@
-pipeline {
-    agent {
-        label 'docker'
+//pipeline {
+//    agent {
+//        label 'docker'
+//    }
+//    stages {
+//        stage('lint') {
+//            agent {
+//                docker {
+//                    image 'registry.opensuse.org/isv/suseinfra/containers/containerfile/suseinfra/salt-ci-lint'
+//                    label 'docker'
+//                }
+//            }
+//            steps {
+//                sh 'set -x; find . -type f \\( -name \'*.yaml\' -o -name \'*.yml\' \\) -exec yamllint -f colored -s {} +'
+//                sh 'set -x; find . -name \'*.sls\' -exec salt-lint --severity {} +'
+//            }
+//        }
+//        stage('test-salt') {
+//            //when {
+//            //    changeset 'salt/*'
+//            //}
+//            agent {
+//                docker {
+//                    image 'registry.opensuse.org/isv/suseinfra/containers/next/containerfile/suseinfra/salt-test-heavy'
+//                    // docker-kvm
+//                    args '--device /dev/kvm'
+//                    label 'docker'
+//                }
+//            }
+//            steps {
+//                sh 'set -x; systemctl start libvirtd.socket'
+//                sh 'scullery --config salt/test/scullery.ini --suite sample.tumbleweed.one_master --env'
+//                sh 'pytest --disable-warnings -v -rx --capture=tee-sys --hosts scullery-master0 --ssh-config .scullery_ssh --sudo --junitxml results.xml salt/test/*.py'
+//                sh 'scullery --config salt/test/scullery.ini --suite sample.tumbleweed.one_master --stop'
+//            }
+//        }
+//    }
+//}
+node('docker') {
+    def image_lint = docker.image('registry.opensuse.org/isv/suseinfra/containers/containerfile/suseinfra/salt-ci-lint')
+    def image_test = docker.image('registry.opensuse.org/isv/suseinfra/containers/next/containerfile/suseinfra/salt-test-heavy')
+
+    checkout scm
+
+    stage('lint') {
+        image_lint.inside() {
+            sh 'set -x; find . -type f \\( -name \'*.yaml\' -o -name \'*.yml\' \\) -exec yamllint -f colored -s {} +'
+            sh 'set -x; find . -name \'*.sls\' -exec salt-lint --severity {} +'
+        }
     }
-    stages {
-        stage('lint') {
-            agent {
-                docker {
-                    image 'registry.opensuse.org/isv/suseinfra/containers/containerfile/suseinfra/salt-ci-lint'
-                    label 'docker'
-                }
-            }
-            steps {
-                sh 'set -x; find . -type f \\( -name \'*.yaml\' -o -name \'*.yml\' \\) -exec yamllint -f colored -s {} +'
-                sh 'set -x; find . -name \'*.sls\' -exec salt-lint --severity {} +'
-            }
-        }
-        stage('test-salt') {
-            //when {
-            //    changeset 'salt/*'
-            //}
-            agent {
-                docker {
-                    image 'registry.opensuse.org/isv/suseinfra/containers/next/containerfile/suseinfra/salt-test-heavy'
-                    // docker-kvm
-                    args '--device /dev/kvm'
-                    label 'docker'
-                }
-            }
-            steps {
-                sh 'set -x; systemctl start libvirtd.socket'
-                sh 'scullery --config salt/test/scullery.ini --suite sample.tumbleweed.one_master --env'
-                sh 'pytest --disable-warnings -v -rx --capture=tee-sys --hosts scullery-master0 --ssh-config .scullery_ssh --sudo --junitxml results.xml salt/test/*.py'
-                sh 'scullery --config salt/test/scullery.ini --suite sample.tumbleweed.one_master --stop'
+
+    stage('salt-test') {
+        withDockerNetwork { n->
+            image_test.withRun('--device=/dev/kvm --network=' + n) { c->
+                def cid = c.id
+                sh """
+                    echo ${cid}
+                    docker logs ${cid}
+                    de() {
+                        docker exec -i ${cid} \$@
+                    }
+                    de systemctl start libvirtd.socket
+                    de scullery --config salt/test/scullery.ini --suite sample.tumbleweed.one_master --env'
+                    de pytest --disable-warnings -v -rx --capture=tee-sys --hosts scullery-master0 --ssh-config .scullery_ssh --sudo --junitxml results.xml salt/test/*.py'
+                    de scullery --config salt/test/scullery.ini --suite sample.tumbleweed.one_master --stop'
+                EOF
+                """
             }
         }
+    }
+}
+
+def withDockerNetwork(Closure inner) {
+    try {
+        networkId = UUID.randomUUID().toString()
+        sh "docker network create ${networkId}"
+        inner.call(networkId)
+    } finally {
+        sh "docker network rm ${networkId}"
     }
 }
