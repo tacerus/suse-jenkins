@@ -26,6 +26,7 @@ pipeline {
                 image 'registry.opensuse.org/isv/suseinfra/containers/next/containerfile/suseinfra/salt-test-heavy'
                 // docker-kvm
                 label 'docker'
+                args '--device /dev/kvm'
             }
             steps {
                 sh 'systemctl start libvirtd.socket'
