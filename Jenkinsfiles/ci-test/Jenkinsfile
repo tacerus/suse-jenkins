@@ -31,7 +31,7 @@ pipeline {
                 }
             }
             steps {
-                sh 'systemctl start libvirtd.socket'
+                sh 'set -x; systemctl start libvirtd.socket'
                 sh 'scullery --config salt/test/scullery.ini --suite sample.tumbleweed.one_master --env'
                 sh 'pytest --disable-warnings -v -rx --capture=tee-sys --hosts scullery-master0 --ssh-config .scullery_ssh --sudo --junitxml results.xml salt/test/*.py'
                 sh 'scullery --config salt/test/scullery.ini --suite sample.tumbleweed.one_master --stop'
