@@ -1,7 +1,7 @@
 pipeline {
     agent {
         docker {
-                image 'registry.suse.com/bci/python:latest'
+                image 'registry.opensuse.org/isv/suseinfra/containers/containerfile/suseinfra/salt-ci-lint'
                 label 'docker' 
         }
     }
@@ -9,7 +9,7 @@ pipeline {
         stage('build') {
             steps {
                 sh 'python3 --version'
-                sh 'echo $HOSTNAME && echo $(pwd) && ls -alR'
+                sh 'echo $HOSTNAME && echo $(pwd)'
             }
         }
         stage('lint') {
