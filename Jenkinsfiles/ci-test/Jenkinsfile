@@ -1,18 +1,15 @@
 pipeline {
     agent {
-        docker {
-                image 'registry.opensuse.org/isv/suseinfra/containers/containerfile/suseinfra/salt-ci-lint'
-                label 'docker' 
-        }
+        label 'docker'
     }
     stages {
-        stage('build') {
-            steps {
-                sh 'python3 --version'
-                sh 'echo $HOSTNAME && echo $(pwd)'
-            }
-        }
         stage('lint') {
+            agent {
+                docker {
+                    image 'registry.opensuse.org/isv/suseinfra/containers/containerfile/suseinfra/salt-ci-lint'
+                    label 'docker'
+                }
+            }
             steps {
                 sh 'set -x; find . -type f \\( -name \'*.yaml\' -o -name \'*.yml\' \\) -exec yamllint -f colored -s {} +'
                 sh 'set -x; find . -name \'*.sls\' -exec salt-lint --severity {} +'
@@ -26,8 +23,8 @@ pipeline {
                 docker {
                     image 'registry.opensuse.org/isv/suseinfra/containers/next/containerfile/suseinfra/salt-test-heavy'
                     // docker-kvm
-                    label 'docker'
                     args '--device /dev/kvm'
+                    label 'docker'
                 }
             }
             steps {
