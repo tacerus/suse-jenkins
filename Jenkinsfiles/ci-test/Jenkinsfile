@@ -18,5 +18,21 @@ pipeline {
                 sh 'set -x; find . -name \'*.sls\' -exec salt-lint --severity {} +'
             }
         }
+        stage('test-salt') {
+            when {
+                changeset 'salt/*'
+            }
+            agent {
+                image 'registry.opensuse.org/isv/suseinfra/containers/next/containerfile/suseinfra/salt-test-heavy'
+                // docker-kvm
+                label 'docker'
+            }
+            steps {
+                sh 'systemctl start libvirtd.socket'
+                sh 'scullery --config salt/test/scullery.ini --suite sample.tumbleweed.one_master --env'
+                sh 'pytest --disable-warnings -v -rx --capture=tee-sys --hosts scullery-master0 --ssh-config .scullery_ssh --sudo --junitxml results.xml salt/test/*.py'
+                sh 'scullery --config salt/test/scullery.ini --suite sample.tumbleweed.one_master --stop'
+            }
+        }
     }
 }
